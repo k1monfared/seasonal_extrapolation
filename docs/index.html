@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Seasonal Extrapolation Explorer</title>
+<style>
+  :root{
+    --bg:#0f1420; --panel:#161d2c; --ink:#e8ecf3; --muted:#9aa4b6;
+    --naive:#d1495b; --aware:#2a9fc4; --truth:#f2f2f2; --accent:#e09f3e;
+    --grid:#2a3346; --line:#30394d;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.5}
+  .wrap{max-width:1000px;margin:0 auto;padding:28px 20px 60px}
+  h1{font-size:24px;margin:0 0 6px}
+  .sub{color:var(--muted);font-size:14px;margin-bottom:16px}
+  .banner{background:#20283a;border:1px solid var(--line);border-left:4px solid var(--accent);
+    padding:10px 14px;border-radius:8px;font-weight:700;margin:0 0 22px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:18px 20px;margin-bottom:18px}
+  .controls{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px}
+  @media(max-width:720px){.controls{grid-template-columns:1fr}}
+  label{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.05em;
+    color:var(--muted);margin-bottom:6px}
+  select,input[type=range]{width:100%}
+  select{background:#0e1422;color:var(--ink);border:1px solid var(--line);
+    border-radius:8px;padding:8px 10px;font-size:14px}
+  .rangeval{font-variant-numeric:tabular-nums;color:var(--ink);font-size:14px;margin-top:6px}
+  .seg{display:flex;gap:6px;margin-top:2px}
+  .seg button{flex:1;background:#0e1422;color:var(--muted);border:1px solid var(--line);
+    border-radius:8px;padding:8px;font-size:13px;cursor:pointer}
+  .seg button.on{background:var(--aware);color:#04202b;border-color:var(--aware);font-weight:700}
+  .cards{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:6px}
+  @media(max-width:720px){.cards{grid-template-columns:1fr}}
+  .card{background:#0e1422;border:1px solid var(--line);border-radius:10px;padding:14px}
+  .card h3{margin:0 0 6px;font-size:13px;color:var(--muted);font-weight:600}
+  .big{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+  .ci{font-size:13px;color:var(--muted);margin-top:2px;font-variant-numeric:tabular-nums}
+  .tag{display:inline-block;font-size:11px;padding:2px 7px;border-radius:20px;margin-top:8px}
+  .tag.good{background:rgba(42,159,196,.15);color:#7fd3ea;border:1px solid rgba(42,159,196,.4)}
+  .tag.bad{background:rgba(209,73,91,.15);color:#f0929e;border:1px solid rgba(209,73,91,.4)}
+  .naiveink{color:var(--naive)} .awareink{color:var(--aware)}
+  svg{width:100%;height:auto;display:block}
+  .axislbl{fill:var(--muted);font-size:11px}
+  .note{color:var(--muted);font-size:13px;margin-top:10px}
+  a{color:#7fd3ea}
+  .legend{display:flex;gap:18px;font-size:12px;color:var(--muted);margin-top:10px;flex-wrap:wrap}
+  .swatch{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:middle;margin-right:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Seasonal Extrapolation Explorer</h1>
+  <div class="sub">Annualizing a short experiment: naive time-scaling vs the seasonality-aware method, on synthetic data.</div>
+  <div class="banner">This is built on synthetic data.</div>
+
+  <div class="panel">
+    <div class="controls">
+      <div>
+        <label>Experiment start (phase in cycle)</label>
+        <select id="anchor"></select>
+      </div>
+      <div>
+        <label>Run length</label>
+        <input type="range" id="hours" min="0" max="0" step="1" value="0">
+        <div class="rangeval" id="hoursval"></div>
+      </div>
+      <div>
+        <label>Reporting horizon</label>
+        <div class="seg" id="horizon">
+          <button data-h="week">Weekly</button>
+          <button data-h="month">Monthly</button>
+          <button data-h="year" class="on">Annual</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="cards">
+      <div class="card">
+        <h3>True impact</h3>
+        <div class="big" id="truth-v">...</div>
+        <div class="ci">the value we are trying to recover</div>
+      </div>
+      <div class="card">
+        <h3 class="awareink">Seasonality-aware estimate</h3>
+        <div class="big awareink" id="aware-v">...</div>
+        <div class="ci" id="aware-ci">...</div>
+        <span class="tag" id="aware-tag"></span>
+      </div>
+      <div class="card">
+        <h3 class="naiveink">Naive estimate</h3>
+        <div class="big naiveink" id="naive-v">...</div>
+        <div class="ci" id="naive-ci">...</div>
+        <span class="tag" id="naive-tag"></span>
+      </div>
+    </div>
+
+    <svg id="chart" viewBox="0 0 900 240" preserveAspectRatio="xMidYMid meet"></svg>
+    <div class="legend">
+      <span><span class="swatch" style="background:var(--aware)"></span>seasonality-aware 95% interval</span>
+      <span><span class="swatch" style="background:var(--naive)"></span>naive 95% interval</span>
+      <span><span class="swatch" style="background:var(--accent)"></span>true impact</span>
+    </div>
+    <div class="note" id="note"></div>
+  </div>
+
+  <div class="panel">
+    <div class="note">
+      Coverage shown on each estimate is the Monte Carlo probability that the interval
+      contains the true impact, across many resimulated experiments and baselines at
+      this exact window. The naive method scales the observed window rate by clock time
+      and ignores seasonal composition, so it is biased and over-confident away from a
+      representative full-cycle window. The aware method reweights by the learned
+      seasonal composition and propagates the extra uncertainty. See the
+      <a href="https://github.com/k1monfared/seasonal_extrapolation/blob/main/outputs/report.md">full report</a>.
+    </div>
+  </div>
+
+  <footer style="color:var(--muted);font-size:13px;text-align:center;margin-top:8px">
+    <a href="https://github.com/k1monfared/seasonal_extrapolation">Source code on GitHub</a>
+  </footer>
+</div>
+
+<script src="explorer_data.js"></script>
+<script>
+const D = window.EXPLORER_DATA;
+const anchors = [...new Set(D.cells.map(c=>c.anchor))];
+const hoursList = [...new Set(D.cells.map(c=>c.hours))].sort((a,b)=>a-b);
+let state = {anchor:anchors[0], hidx:hoursList.indexOf(168)>=0?hoursList.indexOf(168):hoursList.length-1, horizon:"year"};
+
+const $ = id => document.getElementById(id);
+const anchorSel = $("anchor");
+anchors.forEach(a=>{const o=document.createElement("option");o.value=a;o.textContent=a;anchorSel.appendChild(o);});
+anchorSel.value = state.anchor;
+const hoursR = $("hours");
+hoursR.max = hoursList.length-1; hoursR.value = state.hidx;
+
+function fmt(x){
+  const a=Math.abs(x);
+  if(a>=1e6) return "$"+(x/1e6).toFixed(2)+"M";
+  if(a>=1e3) return "$"+(x/1e3).toFixed(1)+"K";
+  return "$"+x.toFixed(0);
+}
+function days(h){ return (h/24); }
+function cell(){
+  return D.cells.find(c=>c.anchor===state.anchor && c.hours===hoursList[state.hidx]);
+}
+
+function draw(){
+  const c = cell();
+  const h = state.horizon;
+  const truth = D.truth[h];
+  const a = c.aware[h], n = c.naive[h];
+
+  $("hoursval").textContent = hoursList[state.hidx]+" hours  ("+days(hoursList[state.hidx]).toFixed(1)+" days)";
+  $("truth-v").textContent = fmt(truth);
+  $("aware-v").textContent = fmt(a.point);
+  $("aware-ci").textContent = "95% CI ["+fmt(a.ci_low)+", "+fmt(a.ci_high)+"]";
+  $("naive-v").textContent = fmt(n.point);
+  $("naive-ci").textContent = "95% CI ["+fmt(n.ci_low)+", "+fmt(n.ci_high)+"]";
+
+  const at=$("aware-tag"), nt=$("naive-tag");
+  at.textContent = "coverage "+Math.round(a.coverage*100)+"%";
+  at.className = "tag "+(a.coverage>=0.9?"good":"bad");
+  nt.textContent = "coverage "+Math.round(n.coverage*100)+"%";
+  nt.className = "tag "+(n.coverage>=0.9?"good":"bad");
+
+  // chart scaling
+  const vals=[a.ci_low,a.ci_high,n.ci_low,n.ci_high,truth,0];
+  let lo=Math.min(...vals), hi=Math.max(...vals);
+  const pad=(hi-lo)*0.12||1; lo-=pad; hi+=pad;
+  const W=900,H=240,L=60,R=30,T=30,B=40;
+  const x=v=>L+(v-lo)/(hi-lo)*(W-L-R);
+  const rows=[{y:T+40,d:a,c:"var(--aware)",lab:"aware"},{y:T+120,d:n,c:"var(--naive)",lab:"naive"}];
+  let s=`<line x1="${x(truth)}" y1="${T}" x2="${x(truth)}" y2="${H-B}" stroke="var(--accent)" stroke-width="2" stroke-dasharray="5,4"/>`;
+  s+=`<text class="axislbl" x="${x(truth)}" y="${T-8}" text-anchor="middle" fill="var(--accent)">true ${fmt(truth)}</text>`;
+  rows.forEach(r=>{
+    s+=`<line x1="${x(r.d.ci_low)}" y1="${r.y}" x2="${x(r.d.ci_high)}" y2="${r.y}" stroke="${r.c}" stroke-width="4" stroke-linecap="round"/>`;
+    s+=`<line x1="${x(r.d.ci_low)}" y1="${r.y-9}" x2="${x(r.d.ci_low)}" y2="${r.y+9}" stroke="${r.c}" stroke-width="2"/>`;
+    s+=`<line x1="${x(r.d.ci_high)}" y1="${r.y-9}" x2="${x(r.d.ci_high)}" y2="${r.y+9}" stroke="${r.c}" stroke-width="2"/>`;
+    s+=`<circle cx="${x(r.d.point)}" cy="${r.y}" r="7" fill="${r.c}"/>`;
+    s+=`<text class="axislbl" x="${L}" y="${r.y-16}" fill="${r.c}">${r.lab}: ${fmt(r.d.point)}</text>`;
+  });
+  // baseline axis
+  s+=`<line x1="${L}" y1="${H-B}" x2="${W-R}" y2="${H-B}" stroke="var(--grid)"/>`;
+  for(let i=0;i<=4;i++){const v=lo+(hi-lo)*i/4;const xx=x(v);
+    s+=`<line x1="${xx}" y1="${H-B}" x2="${xx}" y2="${H-B+5}" stroke="var(--grid)"/>`;
+    s+=`<text class="axislbl" x="${xx}" y="${H-B+18}" text-anchor="middle">${fmt(v)}</text>`;}
+  $("chart").innerHTML=s;
+
+  const err=100*(n.point-truth)/truth;
+  const dir = err>=0?"over":"under";
+  $("note").innerHTML = `At this window the naive method is <b>${Math.abs(err).toFixed(0)}% ${dir}</b> the true ${h} impact `+
+    `with ${Math.round(n.coverage*100)}% interval coverage, while the seasonality-aware method is within `+
+    `<b>${Math.abs(100*(a.point-truth)/truth).toFixed(0)}%</b> with ${Math.round(a.coverage*100)}% coverage.`;
+}
+
+anchorSel.addEventListener("change",e=>{state.anchor=e.target.value;draw();});
+hoursR.addEventListener("input",e=>{state.hidx=+e.target.value;draw();});
+document.querySelectorAll("#horizon button").forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    document.querySelectorAll("#horizon button").forEach(b=>b.classList.remove("on"));
+    btn.classList.add("on"); state.horizon=btn.dataset.h; draw();
+  });
+});
+draw();
+</script>
+</body>
+</html>

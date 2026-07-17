@@ -1,0 +1,73 @@
+{
+  "seed": 42,
+  "history_start": "2023-01-01",
+  "history_end": "2025-12-31",
+  "target_year": 2026,
+
+  "base_sessions_per_hour": 5000.0,
+  "annual_growth": 0.08,
+  "base_value_per_session": 2.50,
+  "session_value_sd": 6.0,
+  "hourly_noise_k": 2.2,
+  "hourly_noise_floor": 0.015,
+
+  "true_relative_lift": 0.05,
+  "additive_lift": 0.125,
+  "effect_type": "relative",
+  "ab_treatment_share": 0.5,
+
+  "confidence": 0.95,
+  "transportability_sd": 0.0,
+
+  "default_experiment": {
+    "start": "2026-12-07T00:00:00",
+    "hours": 168,
+    "label": "Full week in December (peak season)"
+  },
+
+  "calibration": {
+    "n_reps": 800,
+    "nominal": 0.95,
+    "refit_baseline": true,
+    "windows": [
+      {"label": "15h Tue evening (spec example)", "start": "2026-03-03T18:00:00", "hours": 15},
+      {"label": "12h Tue daytime peak", "start": "2026-03-03T09:00:00", "hours": 12},
+      {"label": "1 day (Sat, low traffic)", "start": "2026-03-07T00:00:00", "hours": 24},
+      {"label": "3.5 days (partial week)", "start": "2026-03-02T00:00:00", "hours": 84},
+      {"label": "7 days (full week, March)", "start": "2026-03-02T00:00:00", "hours": 168},
+      {"label": "7 days (full week, December peak)", "start": "2026-12-07T00:00:00", "hours": 168},
+      {"label": "14 days (two weeks, March)", "start": "2026-03-02T00:00:00", "hours": 336}
+    ]
+  },
+
+  "runlength": {
+    "n_reps": 400,
+    "start_anchors": [
+      {"label": "start Mon 00:00", "start": "2026-03-02T00:00:00"},
+      {"label": "start Sat 00:00", "start": "2026-03-07T00:00:00"},
+      {"label": "start Tue 18:00", "start": "2026-03-03T18:00:00"}
+    ],
+    "hours_grid": [12, 24, 48, 84, 120, 168, 240, 336]
+  },
+
+  "effect_heterogeneity": {
+    "n_reps": 600,
+    "sample_scales": [1, 4],
+    "windows": [
+      {"label": "low-effect window (weekday overnight to morning)", "start": "2026-03-04T00:00:00", "hours": 12},
+      {"label": "high-effect window (Saturday evening)", "start": "2026-03-07T17:00:00", "hours": 12},
+      {"label": "full-week reference (Mon to Sun)", "start": "2026-03-02T00:00:00", "hours": 168}
+    ],
+    "invariance_window": {"label": "high-effect window (Saturday evening)", "start": "2026-03-07T17:00:00", "hours": 12}
+  },
+
+  "explorer": {
+    "hours_grid": [12, 24, 48, 84, 120, 168, 240, 336, 504],
+    "anchors": [
+      {"label": "Mon 00:00", "start": "2026-03-02T00:00:00"},
+      {"label": "Tue 18:00", "start": "2026-03-03T18:00:00"},
+      {"label": "Sat 00:00", "start": "2026-03-07T00:00:00"}
+    ],
+    "n_reps": 300
+  }
+}

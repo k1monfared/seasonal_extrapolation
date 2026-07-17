@@ -1,0 +1,7 @@
+# Seasonal extrapolation portfolio demo. FOSS only.
+# Tested with Python 3.11.
+numpy>=1.24,<2.0
+scipy>=1.10
+pandas>=2.0
+statsmodels>=0.14
+matplotlib>=3.6
